@@ -6,4 +6,4 @@ authors = ["Stacey Ell <stacey.ell@gmail.com>"]
 
 [lib]
 name = "markov"
-crate-type = ["dylib"]
+crate-type = ["dylib", "rlib"]
