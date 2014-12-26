@@ -1,6 +1,6 @@
 extern crate libc;
 
-use std::slice::Items;
+use std::slice::Iter;
 use std::iter::IteratorExt;
 use std::collections::{hash_map, HashMap};
 use std::rand::{task_rng, Rng};
@@ -52,7 +52,7 @@ impl AsMarkovIter for str {
 
 struct MarkovIter<'a> {
     cur_key: MarkovKey,
-    source: Items<'a, u8>,
+    source: Iter<'a, u8>,
     finished: bool,
 }
 
