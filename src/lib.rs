@@ -1,25 +1,25 @@
 extern crate libc;
 
+use std::slice::Items;
 use std::iter::IteratorExt;
 use std::collections::{hash_map, HashMap};
-use std::str::Chars;
 use std::rand::{task_rng, Rng};
 use std::mem::transmute;
 use std::slice;
 use std::slice::bytes::copy_memory;
 use libc::{c_void, c_uchar, c_int, c_uint};
 
-const MARKOV_ORDER: uint = 13;
+const MARKOV_ORDER: uint = 9;
 
 #[deriving(Show, Copy, PartialEq, Eq, Hash)]
-struct MarkovKey([char, ..MARKOV_ORDER]);
+struct MarkovKey([u8, ..MARKOV_ORDER]);
 
 impl MarkovKey {
     pub fn new() -> MarkovKey {
-        MarkovKey(['\x00', ..MARKOV_ORDER])
+        MarkovKey([b'\x00', ..MARKOV_ORDER])
     }
 
-    pub fn next(&self, next: char) -> MarkovKey {
+    pub fn next(&self, next: u8) -> MarkovKey {
         let MarkovKey(mut data) = *self;
         let last_elem = data.len() - 1;
         for idx in range(0, last_elem) {
@@ -34,50 +34,56 @@ trait AsMarkovIter for Sized? {
     fn as_markov_iter<'a>(&'a self) -> MarkovIter<'a>;
 }
 
-impl AsMarkovIter for str {
+impl AsMarkovIter for [u8] {
     fn as_markov_iter<'a>(&'a self) -> MarkovIter<'a> {
         MarkovIter {
             cur_key: MarkovKey::new(),
-            source: self.chars(),
+            source: self.iter(),
             finished: false,
         }
     }
 }
 
+impl AsMarkovIter for str {
+    fn as_markov_iter<'a>(&'a self) -> MarkovIter<'a> {
+        self.as_bytes().as_markov_iter()
+    }
+}
+
 struct MarkovIter<'a> {
     cur_key: MarkovKey,
-    source: Chars<'a>,
+    source: Items<'a, u8>,
     finished: bool,
 }
 
-impl<'a> Iterator<(MarkovKey, char)> for MarkovIter<'a> {
-    fn next(&mut self) -> Option<(MarkovKey, char)> {
+impl<'a> Iterator<(MarkovKey, u8)> for MarkovIter<'a> {
+    fn next(&mut self) -> Option<(MarkovKey, u8)> {
         if self.finished {
             return None;
         }
         match self.source.next() {
-            Some(chr) => {
+            Some(&chr) => {
                 let emit_key = self.cur_key;
                 self.cur_key = self.cur_key.next(chr);
                 Some((emit_key, chr))
             },
             None => {
                 self.finished = true;
-                Some((self.cur_key, '\0'))
+                Some((self.cur_key, b'\0'))
             }
         }
     }
 }
 
 #[deriving(Show)]
-struct MarkovValue(u32, Vec<(u32, char)>);
+struct MarkovValue(u32, Vec<(u32, u8)>);
 
 impl MarkovValue {
-    pub fn from_char(val: char) -> MarkovValue {
+    pub fn from_char(val: u8) -> MarkovValue {
         MarkovValue(1, vec![(1, val)])
     }
 
-    pub fn add(&mut self, val: char) {
+    pub fn add(&mut self, val: u8) {
         let &MarkovValue(ref mut count, ref mut vec) = self;
         *count += 1;
         for &(ref mut prob, candidate) in vec.iter_mut() {
@@ -89,7 +95,7 @@ impl MarkovValue {
         vec.push((1, val));
     }
 
-    pub fn pick<R>(&self, rng: &mut R) -> char where R: Rng {
+    pub fn pick<R>(&self, rng: &mut R) -> u8 where R: Rng {
         let &MarkovValue(count, ref vec) = self;
         let mut target = rng.gen_range(0, count);
         for &(sub, chr) in vec.iter() {
@@ -130,7 +136,7 @@ impl MarkovGenerator {
         }
     }
 
-    pub fn speak(&self) -> String {
+    pub fn speak(&self) -> Result<String, ()> {
         self.speak_from_key(MarkovKey::new())
     }
 
@@ -138,25 +144,23 @@ impl MarkovGenerator {
         let keys: Vec<_> = message.as_markov_iter().collect();
         for (key, _) in keys.into_iter().rev() {
             println!("Attempt key = {}", key);
-            for _ in range(0u, 10) {
-                return Ok(self.speak_from_key(key));
-                // if 35 <= resp.len() {
-                //     return Ok(resp);
-                // }
+            match self.speak_from_key(key) {
+                Ok(res) => return Ok(res),
+                Err(_) => ()
             }
         }
         Err(())
     }
 
-    fn speak_from_key(&self, key: MarkovKey) -> String {
+    fn attempt_speak_from_key(&self, key: MarkovKey) -> Result<String, ()> {
         let mut key = key;
-        let mut output = String::new();
+        let mut output = Vec::new();
         let mut rng = task_rng();
 
         {
             let MarkovKey(ref chars) = key;
             for &chr in chars.iter() {
-                if chr != '\0' {
+                if chr != b'\0' {
                     output.push(chr);
                 }
             }
@@ -166,7 +170,7 @@ impl MarkovGenerator {
             match self.table.get(&key) {
                 Some(value) => {
                     let next_char = value.pick(&mut rng);
-                    if next_char == '\0' {
+                    if next_char == b'\0' {
                         break;
                     }
                     output.push(next_char);
@@ -175,8 +179,21 @@ impl MarkovGenerator {
                 None => break,
             }
         }
-        output
-    }    
+        match String::from_utf8(output) {
+            Ok(strval) => Ok(strval),
+            Err(_) => Err(()),
+        }
+    }
+
+    fn speak_from_key(&self, key: MarkovKey) -> Result<String, ()> {
+        for _ in range(0u, 10) {
+            match self.attempt_speak_from_key(key) {
+                Ok(res) => return Ok(res),
+                Err(_) => ()
+            }
+        }
+        Err(())
+    }
 }
 
 impl Drop for MarkovGenerator {
@@ -269,8 +286,13 @@ pub extern "C" fn markov_speak(ptr: *mut c_void, buf: *mut c_uchar, len: c_uint)
     let mut output_buf = unsafe { slice::from_raw_mut_buf(&buf, len as uint) };
     
     let gen: Box<MarkovGenerator> = unsafe { transmute(ptr) };
-    let phrase = gen.speak();
+    let phrase_res = gen.speak();
     let _: *mut c_void = unsafe { transmute(gen) };
+
+    let phrase = match phrase_res {
+        Ok(phrase) => phrase,
+        Err(()) => return -1,
+    };
 
     if phrase.as_bytes().len() < output_buf.len() {
         copy_memory(output_buf.as_mut_slice(), phrase.as_bytes());
@@ -280,10 +302,3 @@ pub extern "C" fn markov_speak(ptr: *mut c_void, buf: *mut c_uchar, len: c_uint)
     }
 }
 
-
-#[test]
-fn test_empty_gen() {
-    let gen = MarkovGenerator::new();
-    assert!(gen.reply("").is_err());
-    panic!();
-}
