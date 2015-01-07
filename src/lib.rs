@@ -1,9 +1,11 @@
+#![feature(associated_types)]
+
 extern crate libc;
 
 use std::slice::Iter;
 use std::iter::IteratorExt;
 use std::collections::{hash_map, HashMap};
-use std::rand::{task_rng, Rng};
+use std::rand::{thread_rng, Rng};
 use std::mem::transmute;
 use std::slice;
 use std::slice::bytes::copy_memory;
@@ -11,12 +13,12 @@ use libc::{c_void, c_uchar, c_int, c_uint};
 
 const MARKOV_ORDER: uint = 9;
 
-#[deriving(Show, Copy, PartialEq, Eq, Hash)]
-struct MarkovKey([u8, ..MARKOV_ORDER]);
+#[derive(Show, Copy, Clone, PartialEq, Eq, Hash)]
+struct MarkovKey([u8; MARKOV_ORDER]);
 
 impl MarkovKey {
     pub fn new() -> MarkovKey {
-        MarkovKey([b'\x00', ..MARKOV_ORDER])
+        MarkovKey([b'\x00'; MARKOV_ORDER])
     }
 
     pub fn next(&self, next: u8) -> MarkovKey {
@@ -56,7 +58,8 @@ struct MarkovIter<'a> {
     finished: bool,
 }
 
-impl<'a> Iterator<(MarkovKey, u8)> for MarkovIter<'a> {
+impl<'a> Iterator for MarkovIter<'a> {
+    type Item = (MarkovKey, u8);
     fn next(&mut self) -> Option<(MarkovKey, u8)> {
         if self.finished {
             return None;
@@ -75,7 +78,7 @@ impl<'a> Iterator<(MarkovKey, u8)> for MarkovIter<'a> {
     }
 }
 
-#[deriving(Show)]
+#[derive(Show)]
 struct MarkovValue(u32, Vec<(u32, u8)>);
 
 impl MarkovValue {
@@ -108,7 +111,7 @@ impl MarkovValue {
     }
 }
 
-#[deriving(Show)]
+#[derive(Show)]
 pub struct MarkovGenerator {
     table: HashMap<MarkovKey, MarkovValue>,
 }
@@ -125,12 +128,12 @@ impl MarkovGenerator {
             return;
         }
         for (key, next) in source.as_markov_iter() {
-            match self.table.entry(key) {
+            match self.table.entry(&key) {
                 hash_map::Entry::Occupied(mut entry) => {
                     entry.get_mut().add(next);
                 },
                 hash_map::Entry::Vacant(entry) => {
-                    entry.set(MarkovValue::from_char(next));
+                    entry.insert(MarkovValue::from_char(next));
                 }
             }
         }
@@ -155,7 +158,7 @@ impl MarkovGenerator {
     fn attempt_speak_from_key(&self, key: MarkovKey) -> Result<String, ()> {
         let mut key = key;
         let mut output = Vec::new();
-        let mut rng = task_rng();
+        let mut rng = thread_rng();
 
         {
             let MarkovKey(ref chars) = key;
