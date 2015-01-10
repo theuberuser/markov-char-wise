@@ -32,7 +32,7 @@ impl MarkovKey {
     }
 }
 
-trait AsMarkovIter for Sized? {
+trait AsMarkovIter {
     fn as_markov_iter<'a>(&'a self) -> MarkovIter<'a>;
 }
 
@@ -87,9 +87,9 @@ impl MarkovValue {
     }
 
     pub fn add(&mut self, val: u8) {
-        let &MarkovValue(ref mut count, ref mut vec) = self;
+        let MarkovValue(ref mut count, ref mut vec) = *self;
         *count += 1;
-        for &(ref mut prob, candidate) in vec.iter_mut() {
+        for &mut (ref mut prob, candidate) in vec.iter_mut() {
             if candidate == val {
                 *prob += 1;
                 return;
@@ -128,7 +128,7 @@ impl MarkovGenerator {
             return;
         }
         for (key, next) in source.as_markov_iter() {
-            match self.table.entry(&key) {
+            match self.table.entry(key) {
                 hash_map::Entry::Occupied(mut entry) => {
                     entry.get_mut().add(next);
                 },
@@ -146,7 +146,7 @@ impl MarkovGenerator {
     fn reply(&self, message: &str) -> Result<String, ()> {
         let keys: Vec<_> = message.as_markov_iter().collect();
         for (key, _) in keys.into_iter().rev() {
-            println!("Attempt key = {}", key);
+            println!("Attempt key = {:?}", key);
             match self.speak_from_key(key) {
                 Ok(res) => return Ok(res),
                 Err(_) => ()
@@ -207,7 +207,7 @@ impl Drop for MarkovGenerator {
 
 #[no_mangle]
 pub extern "C" fn markov_alloc() -> *mut c_void {
-    let markov_generator = box MarkovGenerator::new();
+    let markov_generator = Box::new(MarkovGenerator::new());
     unsafe { transmute(markov_generator) }
 }
 
