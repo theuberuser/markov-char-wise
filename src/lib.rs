@@ -285,7 +285,7 @@ pub extern "C" fn markov_speak(ptr: *mut c_void, buf: *mut c_uchar, len: c_uint)
         return 0;
     }
     let mut output_buf = unsafe { slice::from_raw_mut_buf(&buf, len as uint) };
-    
+
     let gen: Box<MarkovGenerator> = unsafe { transmute(ptr) };
     let phrase_res = gen.speak();
     let _: *mut c_void = unsafe { transmute(gen) };
