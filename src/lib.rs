@@ -10,7 +10,7 @@ use std::slice;
 use std::slice::bytes::copy_memory;
 use libc::{c_void, c_uchar, c_int, c_uint};
 
-const MARKOV_ORDER: uint = 9;
+const MARKOV_ORDER: uint = 11;
 
 #[derive(Show, Copy, Clone, PartialEq, Eq, Hash)]
 struct MarkovKey([u8; MARKOV_ORDER]);
