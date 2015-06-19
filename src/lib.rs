@@ -188,7 +188,7 @@ impl MarkovGenerator {
     }
 
     fn speak_from_key(&self, key: MarkovKey) -> Result<String, ()> {
-        for _ in 0..10 {
+        for _ in 0..12 {
             match self.attempt_speak_from_key(key) {
                 Ok(res) => return Ok(res),
                 Err(_) => ()
