@@ -3,7 +3,7 @@
 serial = "2015061800"
 
 name = "markov"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Stacey Ell <stacey.ell@gmail.com>"], ["Kevin Waters <kevin.waters@gmail.com>"]
 
 [lib]
