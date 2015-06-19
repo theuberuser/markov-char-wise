@@ -24,7 +24,7 @@ impl MarkovKey {
     pub fn next(&self, next: u8) -> MarkovKey {
         let MarkovKey(mut data) = *self;
         let last_elem = data.len() - 1;
-        for idx in range(0, last_elem) {
+        for idx in 0..last_elem {
             data[idx] = data[idx + 1];
         }
         data[last_elem] = next;
