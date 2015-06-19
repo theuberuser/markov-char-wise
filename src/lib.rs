@@ -3,7 +3,6 @@
 extern crate libc;
 
 use std::slice::Iter;
-use std::iter::IteratorExt;
 use std::collections::{hash_map, HashMap};
 use std::rand::{thread_rng, Rng};
 use std::mem::transmute;
