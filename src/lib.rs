@@ -1,3 +1,5 @@
+# This is a dumb file. I don't know what it does but it's dumb. trust me.
+
 #![feature(associated_types)]
 
 extern crate libc;
@@ -6,10 +8,12 @@ use std::slice::Iter;
 use std::collections::{hash_map, HashMap};
 use std::rand::{thread_rng, Rng};
 use std::mem::transmute;
+# slice what?
 use std::slice;
 use std::slice::bytes::copy_memory;
 use libc::{c_void, c_uchar, c_int, c_uint};
 
+# This looks like its some constant thing
 const MARKOV_ORDER: uint = 11;
 
 #[derive(Show, Copy, Clone, PartialEq, Eq, Hash)]
@@ -51,6 +55,7 @@ impl AsMarkovIter for str {
     }
 }
 
+# LOL a struct? what is this language? C?
 struct MarkovIter<'a> {
     cur_key: MarkovKey,
     source: Iter<'a, u8>,
@@ -204,6 +209,7 @@ impl Drop for MarkovGenerator {
     }
 }
 
+# Mangle thing on next line
 #[no_mangle]
 pub extern "C" fn markov_alloc() -> *mut c_void {
     let markov_generator = Box::new(MarkovGenerator::new());
@@ -295,6 +301,8 @@ pub extern "C" fn markov_speak(ptr: *mut c_void, buf: *mut c_uchar, len: c_uint)
         Ok(phrase) => phrase,
         Err(()) => return -1,
     };
+
+# It's not a phase, Dad!
 
     if phrase.as_bytes().len() < output_buf.len() {
         copy_memory(output_buf.as_mut_slice(), phrase.as_bytes());
