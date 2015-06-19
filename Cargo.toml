@@ -1,8 +1,9 @@
 [package]
 
+serial_num = "2015061800"
 name = "markov"
 version = "0.0.1"
-authors = ["Stacey Ell <stacey.ell@gmail.com>"]
+authors = ["Stacey Ell <stacey.ell@gmail.com>", "Kevin Waters <kevin.waters@gmail.com>"]
 
 [lib]
 name = "markov"
